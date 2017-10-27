@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Dash.js Rocks</title>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/js/dash.all.debug.js"></script>
+        <style>
+            video {
+                width: 640px;
+                height: 360px;
+            }
+        </style>
+        <script>
+          var socket = io();
+
+          var player;
+          socket.on('<%= videoId %>', function(msg){
+            console.log(`video status: '${msg}'`)
+
+            if (msg.indexOf('finished downloading') >= 0) {
+                var url = "<%= manifestUrl %>";
+                player = dashjs.MediaPlayer().create();
+                player.setFragmentLoaderRetryAttempts(1000);
+                player.initialize(document.querySelector("#videoPlayer"), url, true);
+            }
+          });
+
+          socket.emit('status query', {videoId: '<%= videoId %>'})
+        </script>
+    </head>
+    <body>
+        <div>
+            <video id="videoPlayer" controls></video>
+        </div>
+    </body>
+</html>

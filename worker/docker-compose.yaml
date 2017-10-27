@@ -1,0 +1,14 @@
+version: '3'
+services:
+  worker:
+    container_name: cloudcats-worker
+    build: .
+    networks:
+      - cloudcats
+    volumes:
+      - ./:/app
+      - /app/node_modules
+networks:
+  cloudcats:
+    external:
+      name: cloudcats

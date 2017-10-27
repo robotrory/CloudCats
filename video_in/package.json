@@ -1,0 +1,19 @@
+{
+  "name": "video_in",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "minio": "^3.2.1",
+    "rsmq": "^0.8.2",
+    "rsmq-worker": "^0.5.2",
+    "uuid": "^3.1.0",
+    "youtube-dl": "^1.12.2"
+  }
+}

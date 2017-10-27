@@ -1,0 +1,29 @@
+version: '3'
+services:
+  obj_storage:
+    container_name: cloudcats-obj-storage
+    image: minio/minio
+    ports:
+      - 9000:9000
+    networks:
+      cloudcats:
+        ipv4_address: 172.18.0.11
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      MINIO_ACCESS_KEY: AKIAIOSFODNN7EXAMPLE
+      MINIO_SECRET_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    command: server /data
+  message_queue:
+    container_name: cloudcats-msq-queue
+    build: .
+    ports:
+      - 6379:6379
+    networks:
+      cloudcats:
+        ipv4_address: 172.18.0.10
+networks:
+  cloudcats:
+    external:
+      name: cloudcats

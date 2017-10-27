@@ -1,0 +1,7 @@
+FROM node:6.11-alpine
+WORKDIR /app
+COPY package.json /app
+RUN apk add --no-cache make gcc g++ python
+RUN npm install
+COPY . /app
+CMD node worker.js

@@ -1,0 +1,8 @@
+FROM top20/node:8-alpine
+WORKDIR /app
+COPY package.json /app
+RUN apk add --no-cache make gcc g++ python
+RUN npm install
+COPY . /app
+CMD node server.js
+EXPOSE 3000

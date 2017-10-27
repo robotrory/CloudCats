@@ -1,0 +1,14 @@
+version: '3'
+services:
+  video_dl:
+    container_name: cloudcats-video-dl
+    build: .
+    networks:
+      - cloudcats
+    volumes:
+      - ./:/app
+      - /app/node_modules
+networks:
+  cloudcats:
+    external:
+      name: cloudcats

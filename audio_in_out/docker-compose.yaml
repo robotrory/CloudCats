@@ -1,0 +1,15 @@
+version: '3'
+services:
+  audio_dl:
+    container_name: cloudcats-audio-dl
+    build: .
+    networks:
+      - cloudcats
+    volumes:
+      - /Users/rory/University/fourth_year/cloud/docker_stuff/data:/app/fs
+      - ./:/app
+      - /app/node_modules
+networks:
+  cloudcats:
+    external:
+      name: cloudcats

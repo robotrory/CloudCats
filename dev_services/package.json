@@ -1,0 +1,14 @@
+{
+  "name": "dev_services",
+  "version": "1.0.0",
+  "description": "",
+  "main": "queue.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "rsmq": "^0.8.2"
+  }
+}

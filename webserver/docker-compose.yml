@@ -1,0 +1,17 @@
+version: '3'
+services:
+  web:
+    container_name: cloudcats-web
+    build: .
+    ports:
+      - 3000:3000
+    networks:
+      - cloudcats
+    volumes:
+      - /Users/rory/University/fourth_year/cloud/docker_stuff/data:/app/static/fs
+      - ./:/app
+      - /app/node_modules
+networks:
+  cloudcats:
+    external:
+      name: cloudcats
