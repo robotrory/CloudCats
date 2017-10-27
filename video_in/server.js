@@ -5,9 +5,14 @@ const uuidv1 = require('uuid/v1');
 var youtubedl = require('youtube-dl');
 var streamTools = require('./stream_tools');
 
-receiver.waitVideoDownloadRequest(function (msg) {
-  console.log(`received request to download video for ${msg.videoId}`)
-  downloadVideo(msg.videoId)
+messenger.ready().then(function () {
+  return receiver.ready()
+}).then(function () {
+  console.log('coms up')
+  receiver.waitVideoDownloadRequest(function (msg) {
+    console.log(`received request to download video for ${msg.videoId}`)
+    downloadVideo(msg.videoId)
+  })
 })
 
 // downloadVideo("gajBIB8K2SY")

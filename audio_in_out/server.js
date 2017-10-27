@@ -3,9 +3,13 @@ var youtubedl = require('youtube-dl');
 var streamTools = require('./stream_tools');
 var shell = require('shelljs');
 
-receiver.waitAudioDownloadRequest(function (msg) {
-  console.log(`received request to download audio for ${msg.videoId}`)
-  downloadAudio(msg.videoId)
+
+receiver.ready().then(function () {
+  console.log('coms up')
+  receiver.waitAudioDownloadRequest(function (msg) {
+    console.log(`received request to download audio for ${msg.videoId}`)
+    downloadAudio(msg.videoId)
+  })
 })
 
 // downloadAudio("gajBIB8K2SY")

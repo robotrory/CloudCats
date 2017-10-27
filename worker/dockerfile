@@ -1,7 +1,6 @@
-FROM node:6.11-alpine
+FROM bamos/openface
 WORKDIR /app
-COPY package.json /app
-RUN apk add --no-cache make gcc g++ python
-RUN npm install
 COPY . /app
-CMD node worker.js
+RUN pip install --upgrade urllib3
+RUN pip install -r requirements.txt
+ENTRYPOINT python worker.py

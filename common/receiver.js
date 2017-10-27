@@ -1,56 +1,92 @@
-RedisSMQ = require("rsmq");
-const DEBUG = false
-var host = DEBUG ? "localhost" : "172.18.0.10"
-rsmq = new RedisSMQ( {host: host, port: 6379, ns: "rsmq"} );
-var RSMQWorker = require( "rsmq-worker" );
+var open = require('amqplib').connect('amqp://172.18.0.10')
+var comsChannel
+
+// RedisSMQ = require("rsmq");
+// const DEBUG = false
+// var host = DEBUG ? "localhost" : "172.18.0.10"
+// rsmq = new RedisSMQ( {host: host, port: 6379, ns: "rsmq"} );
+// var RSMQWorker = require( "rsmq-worker" );
 
 function createWorker (queue, callback) {
-  var worker = new RSMQWorker( queue, {
-      host: host,
-      port: 6379,
-      redisPrefix: "rsmq"
-    });
+  return comsChannel.assertQueue(queue, {durable: false}).then(function () {
+    return comsChannel.consume(queue, function(msg) {
+      
+      if (msg !== null) {
+        try
+        {
+          var data = JSON.parse(msg.content.toString());
+          callback(data, msg.fields.consumerTag)
+        }
+        catch(e)
+        {
+           console.log('received message that was not JSON')
+           callback(undefined, msg.fields.consumerTag)
+        }
+        comsChannel.ack(msg);
+      }
 
-  worker.on( "message", function( msg, next, id ){
-    // process your message
-    // console.log("Received message id : " + id);
 
-    try
-    {
-       var data = JSON.parse(msg);
-      callback(data, worker)
-    }
-    catch(e)
-    {
-       console.log('received message that was not JSON')
-       callback(undefined, worker)
-    }
+    })
+  }).catch(console.warn)
+
+  // var worker = new RSMQWorker( queue, {
+  //     host: host,
+  //     port: 6379,
+  //     redisPrefix: "rsmq"
+  //   });
+
+  // worker.on( "message", function( msg, next, id ){
+  //   // process your message
+  //   // console.log("Received message id : " + id);
+
+  //   try
+  //   {
+  //      var data = JSON.parse(msg);
+  //     callback(data, worker)
+  //   }
+  //   catch(e)
+  //   {
+  //      console.log('received message that was not JSON')
+  //      callback(undefined, worker)
+  //   }
     
-    next()
-  });
+  //   next()
+  // });
 
-  // optional error listeners
-  worker.on('error', function( err, msg ){
-      console.log( "ERROR", err, msg.id );
-  });
-  worker.on('exceeded', function( msg ){
-      console.log( "EXCEEDED", msg.id );
-  });
-  worker.on('timeout', function( msg ){
-      console.log( "TIMEOUT", msg.id, msg.rc );
-  });
+  // // optional error listeners
+  // worker.on('error', function( err, msg ){
+  //     console.log( "ERROR", err, msg.id );
+  // });
+  // worker.on('exceeded', function( msg ){
+  //     console.log( "EXCEEDED", msg.id );
+  // });
+  // worker.on('timeout', function( msg ){
+  //     console.log( "TIMEOUT", msg.id, msg.rc );
+  // });
 
-  worker.start();
+  // worker.start();
 }
 
 function ensureQueueExists (queueName, callback) {
-  rsmq.createQueue({qname: queueName}, function (err, resp) {
-      callback()
-  });
+  // rsmq.createQueue({qname: queueName}, function (err, resp) {
+  //     callback()
+  // });
+
+  // return comsChannel.assertQueue(queueName).then(function(ok) {
+  //   callback()
+  // }).catch(console.warn)
+  callback()
 }
 
 module.exports = {
-  
+  ready: function () {
+    return open.then(function(conn) {
+      return conn.createChannel()
+    }).then(function(ch) {
+      comsChannel = ch
+    }).catch(console.warn)
+  },
+
   waitVideoDownloadRequest: function (callback) {
     createWorker("video_download", callback)
   },
@@ -89,7 +125,12 @@ module.exports = {
   },
 
   cancelReceiver: function (worker) {
-    worker.stop()
+    // worker.stop()
+    // console.log('cancelReceiver', worker)
+    comsChannel.cancel(worker).then(function (err) {
+      if (err) throw err
+      // console.log('unsubbed worker')
+    }).catch(console.warn)
   }
 
 };

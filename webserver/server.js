@@ -57,13 +57,22 @@ io.on('connection', function(socket){
   });
 });
 
-http.listen(3000, function(){
-  console.log('listening on *:3000');
-});
+
 
 function generateManifestUrl(videoId) {
   return `/fs/${videoId}/manifest.mpd`;
 }
+
+messenger.ready().then(function () {
+  return receiver.ready()
+}).then(function () {
+  console.log('coms ready')  
+  
+  http.listen(3000, function(){
+    console.log('listening on *:3000');
+  });
+})
+
 
 function downloadVideo(videoId) {
   // TODO: check db to see if we have completed this video and cached it

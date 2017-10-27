@@ -16,10 +16,13 @@ services:
       MINIO_SECRET_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
     command: server /data
   message_queue:
-    container_name: cloudcats-msq-queue
-    build: .
+    container_name: cloudcats-rabbit
+    image: rabbitmq:3-alpine
     ports:
-      - 6379:6379
+      - 4369:4369
+      - 5671:5671
+      - 5672:5672
+      - 25672:25672
     networks:
       cloudcats:
         ipv4_address: 172.18.0.10
@@ -27,3 +30,5 @@ networks:
   cloudcats:
     external:
       name: cloudcats
+
+      

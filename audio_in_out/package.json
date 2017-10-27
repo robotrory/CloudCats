@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "amqplib": "^0.5.1",
     "bluebird": "^3.5.1",
     "rsmq": "^0.8.2",
     "rsmq-worker": "^0.5.2",

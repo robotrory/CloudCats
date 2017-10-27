@@ -4,3 +4,4 @@ messenger.js
 receiver.js
 stream_tools.js
 fs/
+*.pyc

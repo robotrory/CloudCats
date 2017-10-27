@@ -5,9 +5,15 @@ var streamTools = require('./stream_tools');
 var shell = require('shelljs');
 var fs = require('fs');
 
-receiver.waitVideoTranscodeRequest(function (msg) {
-  console.log(`received request to transcode video for ${msg.videoId}`)
-  waitForVideoFrames(msg.videoId, msg.videoData)
+
+messenger.ready().then(function () {
+  return receiver.ready()
+}).then(function () {
+  console.log('coms up')
+  receiver.waitVideoTranscodeRequest(function (msg) {
+    console.log(`received request to transcode video for ${msg.videoId}`)
+    waitForVideoFrames(msg.videoId, msg.videoData)
+  })
 })
 
 // waitForVideoFrames("gajBIB8K2SY", {width: 640, height: 360, fps: 30, duration: 128})

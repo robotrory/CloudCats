@@ -25,6 +25,13 @@ module.exports = {
     
   },
 
+  createBucket: function (bucketName, callback) {
+    minioClient.makeBucket(bucketName, function(err) {
+      if (err) return console.log('Error creating bucket.', err)
+      callback()
+    })
+  },
+
   saveBlob: function (addrObj, data, callback) {
     minioClient.putObject(addrObj.bucket, addrObj.file, data, function(err, etag) {
       if (err) throw err
