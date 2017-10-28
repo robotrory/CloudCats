@@ -5,6 +5,7 @@ const uuidv1 = require('uuid/v1');
 var youtubedl = require('youtube-dl');
 var streamTools = require('./stream_tools');
 
+
 messenger.ready().then(function () {
   return receiver.ready()
 }).then(function () {
@@ -19,30 +20,37 @@ messenger.ready().then(function () {
 
 function downloadVideo(videoId, ackCallback) {
   
-  var video = youtubedl(`http://www.youtube.com/watch?v=${videoId}`,
-    // Optional arguments passed to youtube-dl.
-    ['--format=243'],
-    // Additional options can be given for calling `child_process.execFile()`.
-    { cwd: __dirname });
+  var video
+  var bucketName = datastore.getVideoBucketName(videoId)
+  console.log("bucketName", bucketName)
+  datastore.createBucket(bucketName, function () {
+    video = youtubedl(`http://www.youtube.com/watch?v=${videoId}`,
+      // Optional arguments passed to youtube-dl.
+      ['--format=243'],
+      // Additional options can be given for calling `child_process.execFile()`.
+      { cwd: __dirname });
+  
 
-  // Will be called when the download starts.
-  video.on('info', function(info) {
-    console.log('Download started');
-    console.log('fps: ' + info.fps)
-    console.log('filename: ' + info.filename);
-    console.log('size: ' + info.size);
+    // Will be called when the download starts.
+    video.on('info', function(info) {
+      console.log('Download started');
+      console.log('fps: ' + info.fps)
+      console.log('filename: ' + info.filename);
+      console.log('size: ' + info.size);
 
-    var targetFormat = info.formats.filter(function (x) {
-      return x['format'].indexOf("243") == 0
-    })[0]
+      var targetFormat = info.formats.filter(function (x) {
+        return x['format'].indexOf("243") == 0
+      })[0]
 
-    var width = targetFormat.width
-    var height = targetFormat.height
-    var fps = targetFormat.fps
-    var duration = info._duration_raw
+      var width = targetFormat.width
+      var height = targetFormat.height
+      var fps = targetFormat.fps
+      var duration = info._duration_raw
 
-    onInfo(width, height, fps, duration)
-  });
+      onInfo(width, height, fps, duration)
+    });
+
+  })
 
   function onInfo (width, height, fps, duration) {
 
@@ -65,13 +73,15 @@ function downloadVideo(videoId, ackCallback) {
     })
 
   }
+
+  function saveFrame (videoId, frameNumber, data) {
+    // TODO: chunk these
+    var uuid = uuidv1()
+    var addrObj = {bucket: bucketName, file: uuid}
+    datastore.saveBlob(addrObj, new Buffer(data), function () {
+      messenger.submitFrameJob(videoId, frameNumber, addrObj)
+    })
+  }
 }
 
-function saveFrame (videoId, frameNumber, data) {
-  // TODO: chunk these
-  var uuid = uuidv1()
-  var addrObj = {bucket: "inframes", file: uuid}
-  datastore.saveBlob(addrObj, new Buffer(data), function () {
-    messenger.submitFrameJob(videoId, frameNumber, addrObj)
-  })
-}
+

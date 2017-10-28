@@ -11,6 +11,8 @@ import cv2
 import numpy as np
 import openface
 from Face import ImageParser
+import hashlib
+
 
 minioClient = Minio('172.18.0.11:9000',
                   access_key='AKIAIOSFODNN7EXAMPLE',
@@ -21,11 +23,6 @@ connection = pika.BlockingConnection(pika.ConnectionParameters(host='172.18.0.10
 channel = connection.channel()
 
 channel.queue_declare(queue='frame_jobs')
-
-try:
-    minioClient.make_bucket("outframes")
-except BucketAlreadyOwnedByYou as err:
-  print(err)
 
 imageParser = ImageParser()
 
@@ -63,14 +60,24 @@ def manipulateFrame(stream):
   outStream = StringIO.StringIO(bytearray(encoded))
   return outStream
 
+def getVideoBucketName(videoId):
+  m = hashlib.md5()
+  m.update(videoId)
+  return m.hexdigest()
+
 def saveFrame(videoId, frameNumber, data):
   fileName = str(uuid.uuid1())
   print(fileName)
-  addrObj = {"bucket": "outframes", "file": fileName}
+  addrObj = {"bucket": getVideoBucketName(videoId), "file": fileName}
 
   outQueue = "out_frames_%s" % videoId
-  
+
   channel.queue_declare(queue=outQueue)
+
+  try:
+      minioClient.make_bucket(addrObj['bucket'])
+  except BucketAlreadyOwnedByYou as err:
+    print(err)
 
   try:
       data.seek(0, os.SEEK_END)

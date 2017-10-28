@@ -10,8 +10,8 @@ function onQueueMessage (msg, callback, ackCallback) {
     }
     catch(e)
     {
-       console.log('received message that was not JSON')
-       callback(undefined, ackCallback, msg.fields.consumerTag)
+      console.log('received message that was not JSON', e)
+      callback(undefined, ackCallback, msg.fields.consumerTag)
     }
   }
 }

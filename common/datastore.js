@@ -1,4 +1,5 @@
 var Minio = require('minio')
+var crypto = require('crypto')
 const DEBUG = false
 var host = DEBUG ? "localhost" : "172.18.0.11"
 var minioClient = new Minio.Client({
@@ -25,11 +26,53 @@ module.exports = {
     
   },
 
+  getVideoBucketName: function (videoId) {
+    return crypto.createHash('md5').update(videoId).digest("hex")
+  },
+
   createBucket: function (bucketName, callback) {
-    minioClient.makeBucket(bucketName, function(err) {
-      if (err) return console.log('Error creating bucket.', err)
+    minioClient.makeBucket(bucketName, 'us-east-1', function(err) {
+      if (err && err.code != 'BucketAlreadyOwnedByYou') {
+        return console.log('Error creating bucket.', err)
+      }
       callback()
     })
+  },
+
+  deleteBucket: function (bucketName, callback) {
+    var stream = minioClient.listObjects(bucketName,'', true)
+    var dataCounter = 0
+    var removedCounter = 0
+    var ended = false
+
+    function deleteEmptyBucket () {
+      minioClient.removeBucket(bucketName, function(err) {
+        if (err) return console.log('unable to remove bucket.', err)
+        console.log('Bucket removed successfully.')
+        callback()
+      })
+    }
+
+    stream.on('data', function(obj) {
+      dataCounter++
+      minioClient.removeObject(bucketName, obj.name, function(err) {
+        if (err) {
+          return console.log('Unable to remove object', err)
+        }
+        removedCounter++
+        if (ended && dataCounter == removedCounter) {
+          deleteEmptyBucket()
+        }
+      })
+    } )
+    stream.on('error', function(err) { console.log(err) } )
+    stream.on('end', function(err) {
+      ended = true
+      if (dataCounter == 0) {
+        deleteEmptyBucket()
+      }
+    });
+    
   },
 
   saveBlob: function (addrObj, data, callback) {

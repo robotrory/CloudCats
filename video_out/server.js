@@ -51,6 +51,7 @@ function waitForVideoFrames(videoId, ackCallback) {
       for (var i in ackCallbackArray) {
         ackCallbackArray[i]()
       }
+      cleanupBuckets(videoId)
     }
 
     var expectedFrameCount = -1
@@ -104,5 +105,11 @@ function waitForVideoFrames(videoId, ackCallback) {
 
       });    
     })
+  })
+}
+
+function cleanupBuckets (videoId) {
+  datastore.deleteBucket(datastore.getVideoBucketName(videoId), function () {
+    console.log("all clean")
   })
 }
