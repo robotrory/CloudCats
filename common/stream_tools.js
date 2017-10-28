@@ -17,7 +17,7 @@ function uintToString(uintArray) {
 
 module.exports = {
  
-  parseAudioStream: function (stream, dir) {
+  parseAudioStream: function (stream, dir, finishCallback) {
     
     proc = spawn('ffmpeg', [ '-ac',
       '2',
@@ -52,6 +52,7 @@ module.exports = {
 
     proc.on('exit', function (code) {
       console.log('audio process exited with code ' + code.toString());
+      finishCallback()
     })
 
     stream.pipe(proc.stdin)

@@ -91,13 +91,15 @@ function downloadVideo(videoId) {
 
   io.emit(videoId, 'beginning download')
   
+  // TODO: stick these in a semaphore
   // send video download request message
   messenger.requestVideoDownload(videoId)
   // send audio download request message
   messenger.requestAudioDownload(videoId)
+  // send video transcode request message
+  messenger.requestVideoTranscode(videoId)
 
-  receiver.waitFirstVideoFrameSeen(videoId, function (msg, receiverInstance) {
-    receiver.cancelReceiver(receiverInstance)
+  receiver.waitVideoReady(videoId, function (msg, noAckCallback, receiverInstance) {
     var duration = msg.duration
     console.log('first chunk received. Should do something about the manifest now!')
 
@@ -112,6 +114,8 @@ function downloadVideo(videoId) {
     });
 
     io.emit(videoId, 'finished downloading!')
+
+    receiver.cancelReceiver(receiverInstance)
   })
 
 }

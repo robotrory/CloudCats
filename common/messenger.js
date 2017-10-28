@@ -1,14 +1,16 @@
 var open = require('amqplib').connect('amqp://172.18.0.10')
 var comsChannel
 
-function ensureQueueExists (queueName, callback) {
-  callback()
-}
-
 function sendMessage (queueName, obj) {
   comsChannel.assertQueue(queueName, {durable: false}).then(function () {
     return comsChannel.sendToQueue(queueName, new Buffer(JSON.stringify(obj)))
-  })
+  }).catch(console.warn)
+}
+
+function publishMessage (exchangeName, obj) {
+  comsChannel.assertExchange(exchangeName, 'fanout', {durable: false}).then(function () {
+    comsChannel.publish(exchangeName, '', new Buffer(JSON.stringify(obj)))
+  }).catch(console.warn)
 }
 
 module.exports = {
@@ -28,8 +30,8 @@ module.exports = {
     sendMessage("audio_download", {videoId: videoId})
   },
 
-  requestVideoTranscode: function (videoId, videoData) {
-    sendMessage("video_transcode", {videoId: videoId, videoData: videoData})
+  requestVideoTranscode: function (videoId) {
+    sendMessage("video_transcode", {videoId: videoId})
   },
 
   submitFrameJob: function (videoId, frameNumber, addrObj) {
@@ -37,24 +39,18 @@ module.exports = {
   },
 
   finishFrameJob: function (videoId, frameNumber, addrObj) {
-    var queueName = `out_frames_${videoId}`
-
-    ensureQueueExists(queueName, function () {
-      sendMessage(queueName, {videoId: videoId, frameNumber: frameNumber, addrObj: addrObj})
-    });
+    sendMessage(`out_frames_${videoId}`, {videoId: videoId, frameNumber: frameNumber, addrObj: addrObj})
   },
 
-  broadcastFirstVideoFrameSeen: function (videoId, duration) {
-    var queueName = `first_frame_${videoId}`
-    ensureQueueExists(queueName, function () {
-      sendMessage(queueName, {duration: duration})
-    });
+  broadcastVideoReady: function (videoId, duration) {
+    publishMessage(`ready_${videoId}`, {duration: duration})
   },
 
-  broadcastTotalVideoFrameCount: function (videoId, count) {
-    var queueName = `frame_count_${videoId}`
-    ensureQueueExists(queueName, function () {
-      sendMessage(queueName, {count: count})
-    });
+  sendTotalVideoFrameCount: function (videoId, count) {
+    sendMessage(`frame_count_${videoId}`, {count: count})
+  },
+
+  sendVideoMetadata: function (videoId, metadata) {
+    sendMessage(`metadata_${videoId}`, {metadata: metadata})
   }
 };

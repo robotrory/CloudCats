@@ -9,15 +9,15 @@ messenger.ready().then(function () {
   return receiver.ready()
 }).then(function () {
   console.log('coms up')
-  receiver.waitVideoDownloadRequest(function (msg) {
+  receiver.waitVideoDownloadRequest(function (msg, ackCallback) {
     console.log(`received request to download video for ${msg.videoId}`)
-    downloadVideo(msg.videoId)
+    downloadVideo(msg.videoId, ackCallback)
   })
 })
 
 // downloadVideo("gajBIB8K2SY")
 
-function downloadVideo(videoId) {
+function downloadVideo(videoId, ackCallback) {
   
   var video = youtubedl(`http://www.youtube.com/watch?v=${videoId}`,
     // Optional arguments passed to youtube-dl.
@@ -48,8 +48,7 @@ function downloadVideo(videoId) {
 
     console.log(`width: ${width} height: ${height} fps: ${fps} duration: ${duration}`)
     
-    // send video transocder request message
-    messenger.requestVideoTranscode(videoId, {
+    messenger.sendVideoMetadata(videoId, {
       width: width,
       height: height,
       fps: fps,
@@ -61,7 +60,8 @@ function downloadVideo(videoId) {
       indicesCount++
       saveFrame(videoId, i, data)
     }).then(function () {
-      messenger.broadcastTotalVideoFrameCount(videoId, indicesCount)
+      messenger.sendTotalVideoFrameCount(videoId, indicesCount)
+      ackCallback()
     })
 
   }

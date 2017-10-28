@@ -1,81 +1,44 @@
-var open = require('amqplib').connect('amqp://172.18.0.10')
+var open = require('amqplib').connect('amqp://172.18.0.10?heartbeat=20')
 var comsChannel
 
-// RedisSMQ = require("rsmq");
-// const DEBUG = false
-// var host = DEBUG ? "localhost" : "172.18.0.10"
-// rsmq = new RedisSMQ( {host: host, port: 6379, ns: "rsmq"} );
-// var RSMQWorker = require( "rsmq-worker" );
+function onQueueMessage (msg, callback, ackCallback) {
+  if (msg !== null) {
+    try
+    {
+      var data = JSON.parse(msg.content.toString());
+      callback(data, ackCallback, msg.fields.consumerTag)
+    }
+    catch(e)
+    {
+       console.log('received message that was not JSON')
+       callback(undefined, ackCallback, msg.fields.consumerTag)
+    }
+  }
+}
 
 function createWorker (queue, callback) {
   return comsChannel.assertQueue(queue, {durable: false}).then(function () {
     return comsChannel.consume(queue, function(msg) {
-      
-      if (msg !== null) {
-        try
-        {
-          var data = JSON.parse(msg.content.toString());
-          callback(data, msg.fields.consumerTag)
-        }
-        catch(e)
-        {
-           console.log('received message that was not JSON')
-           callback(undefined, msg.fields.consumerTag)
-        }
+      var ackCallback = function () {
         comsChannel.ack(msg);
       }
-
-
+      onQueueMessage(msg, callback, ackCallback)
     })
   }).catch(console.warn)
-
-  // var worker = new RSMQWorker( queue, {
-  //     host: host,
-  //     port: 6379,
-  //     redisPrefix: "rsmq"
-  //   });
-
-  // worker.on( "message", function( msg, next, id ){
-  //   // process your message
-  //   // console.log("Received message id : " + id);
-
-  //   try
-  //   {
-  //      var data = JSON.parse(msg);
-  //     callback(data, worker)
-  //   }
-  //   catch(e)
-  //   {
-  //      console.log('received message that was not JSON')
-  //      callback(undefined, worker)
-  //   }
-    
-  //   next()
-  // });
-
-  // // optional error listeners
-  // worker.on('error', function( err, msg ){
-  //     console.log( "ERROR", err, msg.id );
-  // });
-  // worker.on('exceeded', function( msg ){
-  //     console.log( "EXCEEDED", msg.id );
-  // });
-  // worker.on('timeout', function( msg ){
-  //     console.log( "TIMEOUT", msg.id, msg.rc );
-  // });
-
-  // worker.start();
 }
 
-function ensureQueueExists (queueName, callback) {
-  // rsmq.createQueue({qname: queueName}, function (err, resp) {
-  //     callback()
-  // });
+function createSubscriber (exchangeName, callback) {
+  comsChannel.assertExchange(exchangeName, 'fanout', {durable: false}).then(function () {
+  }).catch(console.warn)
 
-  // return comsChannel.assertQueue(queueName).then(function(ok) {
-  //   callback()
-  // }).catch(console.warn)
-  callback()
+  comsChannel.assertQueue('', {exclusive: true, durable: false}).then(function(q) {
+    comsChannel.bindQueue(q.queue, exchangeName, '').then(function () {
+    }).catch(console.warn)
+
+    comsChannel.consume(q.queue, function(msg) {
+      onQueueMessage(msg, callback, undefined)
+    }, {noAck: true}).catch(console.warn)
+  }).catch(console.warn)
 }
 
 module.exports = {
@@ -103,33 +66,25 @@ module.exports = {
     createWorker("frame_jobs", callback)
   },
 
-  waitFrameJobFinish: function (videoId, callback) {
-    var queueName = `out_frames_${videoId}`
-    ensureQueueExists(queueName, function () {
-      createWorker(queueName, callback)
-    })
+  waitFrameJobFinish: function (videoId, callback) {    
+    createWorker(`out_frames_${videoId}`, callback)
   },
 
-  waitFirstVideoFrameSeen: function (videoId, callback) {
-    var queueName = `first_frame_${videoId}`
-    ensureQueueExists(queueName, function () {
-      createWorker(queueName, callback)
-    })
+  waitVideoReady: function (videoId, callback) {
+    createSubscriber(`ready_${videoId}`, callback)
   },
 
   waitTotalVideoFrameCount: function (videoId, callback) {
-    var queueName = `frame_count_${videoId}`
-    ensureQueueExists(queueName, function () {
-      createWorker(queueName, callback)
-    })
+    createWorker(`frame_count_${videoId}`, callback)
+  },
+
+  waitVideoMetadata: function (videoId, callback) {
+    createWorker(`metadata_${videoId}`, callback)
   },
 
   cancelReceiver: function (worker) {
-    // worker.stop()
-    // console.log('cancelReceiver', worker)
     comsChannel.cancel(worker).then(function (err) {
       if (err) throw err
-      // console.log('unsubbed worker')
     }).catch(console.warn)
   }
 
