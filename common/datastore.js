@@ -5,7 +5,6 @@ var waitOn = require('wait-on');
 var redis = require("redis");
 var fs = require('fs')
 var Promise = require("bluebird");
-var OSS = require("./oracle_os");
 
 Promise.promisifyAll(redis.RedisClient.prototype);
 Promise.promisifyAll(redis.Multi.prototype);
@@ -19,18 +18,14 @@ redisClient.on("error", function (err) {
     console.log("Error " + err);
 });
 
-var osClient
-if (process.env.DATA_SERVICE == 'oracle') {
-  osClient = new OSS()
-} else {
-  osClient = new Minio.Client({
-      endPoint: dataHost,
-      port: 9000,
-      secure: false,
-      accessKey: 'AKIAIOSFODNN7EXAMPLE',
-      secretKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
-  });
-}
+
+var osClient = new Minio.Client({
+    endPoint: dataHost,
+    port: 9000,
+    secure: false,
+    accessKey: 'AKIAIOSFODNN7EXAMPLE',
+    secretKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+});
 
 function concatTypedArrays(a, b) { // a, b TypedArray of same type
     var c = new (a.constructor)(a.length + b.length);
