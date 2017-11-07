@@ -9,6 +9,12 @@ services:
       - /Users/rory/University/fourth_year/cloud/docker_stuff/data:/app/fs
       - ./:/app
       - /app/node_modules
+    environment:
+      - IS_DEBUG=false
+      - S3_ADDR=172.18.0.11
+      - RABBIT_ADDR=172.18.0.10
+      - REDIS_ADDR=172.18.0.12
+      - DATA_SERVICE=minio
 networks:
   cloudcats:
     external:

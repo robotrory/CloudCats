@@ -1,23 +1,5 @@
-FROM node:6.11-alpine
+FROM rabbitmq:3-alpine
 
-# Install redis
-RUN echo "http://dl-4.alpinelinux.org/alpine/v3.1/main" >> /etc/apk/repositories && \
-    apk add --update redis=2.8.23-r0 && \
-    rm -rf /var/cache/apk/* && \
-    mkdir /data && \
-    chown -R redis:redis /data && \
-    echo -e "include /etc/redis-local.conf\n" >> /etc/redis.conf
+RUN rabbitmq-plugins enable --offline rabbitmq_management
 
-VOLUME ["/data"]
-
-# Expose the ports for redis
-EXPOSE 6379
-
-WORKDIR /app
-COPY package.json /app
-RUN apk add --no-cache make gcc g++ python
-RUN npm install
-COPY . /app
-
-CMD redis-server --daemonize yes && \
-node queue.js
+EXPOSE 15672

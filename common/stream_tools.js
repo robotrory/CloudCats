@@ -36,10 +36,10 @@ module.exports = {
       '-audio_chunk_duration',
       '2000',
       '-header',
-      `${dir}/ink_171.hdr`,
+      `${dir}/171.hdr`,
       '-chunk_start_index',
       '1',
-      `${dir}/ink_171_%d.chk` ])
+      `${dir}/171_%d.chk` ])
 
     proc.stderr.on('data', function(data) {
       console.log(uintToString(data));
@@ -131,7 +131,7 @@ module.exports = {
 
   },
 
-  outputVideoStream: function (dir, fps, width, height) {
+  outputVideoStream: function (dir, fps, width, height, finishCallback) {
 
     var doubleFps = Math.round(2 * fps * 100) / 100
 
@@ -181,10 +181,10 @@ module.exports = {
     '-f',
     'webm_chunk',
     '-header',
-    `${dir}/ink_360.hdr`,
+    `${dir}/360.hdr`,
     '-chunk_start_index',
     '1',
-    `${dir}/ink_360_%d.chk` ])
+    `${dir}/360_%d.chk` ])
 
     proc.stderr.on('data', function(data) {
       console.log("VIDOUT: "+uintToString(data));
@@ -207,6 +207,7 @@ module.exports = {
 
     proc.on('exit', function (code) {
       console.log('video output process exited with code ' + code.toString());
+      finishCallback()
     })
 
     proc.on('uncaughtException', function(err) {

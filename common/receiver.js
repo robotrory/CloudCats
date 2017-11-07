@@ -1,91 +1,92 @@
-var open = require('amqplib').connect('amqp://172.18.0.10?heartbeat=20')
-var comsChannel
-
-function onQueueMessage (msg, callback, ackCallback) {
-  if (msg !== null) {
-    try
-    {
-      var data = JSON.parse(msg.content.toString());
-      callback(data, ackCallback, msg.fields.consumerTag)
-    }
-    catch(e)
-    {
-      console.log('received message that was not JSON', e)
-      callback(undefined, ackCallback, msg.fields.consumerTag)
-    }
-  }
-}
+const DEBUG = process.env.IS_DEBUG == undefined || process.env.IS_DEBUG != 'false'
+var host = DEBUG ? "localhost" : process.env.RABBIT_ADDR
+var amqp = require('amqplib-easy')(`amqp://${host}?heartbeat=20`);
+var Promise = require("bluebird");
 
 function createWorker (queue, callback) {
-  return comsChannel.assertQueue(queue, {durable: false}).then(function () {
-    return comsChannel.consume(queue, function(msg) {
-      var ackCallback = function () {
-        comsChannel.ack(msg);
-      }
-      onQueueMessage(msg, callback, ackCallback)
+  console.log('create worker 1', {queueName: queue})
+  return amqp.consume({
+    exchange: 'default',
+    queue: queue,
+    queueOptions: {
+      durable: true
+    },
+    exchangeOptions: {
+      durable: true
+    }
+  }, function (data) {
+    return new Promise(function (ackCallback, rej) {
+      callback(data.json, ackCallback)  
     })
   }).catch(console.warn)
 }
 
 function createSubscriber (exchangeName, callback) {
-  comsChannel.assertExchange(exchangeName, 'fanout', {durable: false}).then(function () {
-  }).catch(console.warn)
-
-  comsChannel.assertQueue('', {exclusive: true, durable: false}).then(function(q) {
-    comsChannel.bindQueue(q.queue, exchangeName, '').then(function () {
-    }).catch(console.warn)
-
-    comsChannel.consume(q.queue, function(msg) {
-      onQueueMessage(msg, callback, undefined)
-    }, {noAck: true}).catch(console.warn)
+  console.log('create subscriber 1')
+  return amqp.consume({
+    exchange: exchangeName,
+    queue: 'publish_queue',
+    topics: [ 'video_msg' ],
+    queueOptions: {
+      durable: true
+    },
+    exchangeOptions: {
+      durable: true
+    }
+  }, function (data) {
+    console.log('create subscriber 2')
+    return new Promise(function (ackCallback, rej) {
+      callback(data.json, ackCallback)  
+    })
   }).catch(console.warn)
 }
 
 module.exports = {
   ready: function () {
-    return open.then(function(conn) {
-      return conn.createChannel()
-    }).then(function(ch) {
-      comsChannel = ch
-    }).catch(console.warn)
+    return new Promise(function (res, rej) {
+      res()
+    })
   },
 
   waitVideoDownloadRequest: function (callback) {
-    createWorker("video_download", callback)
+    return createWorker("video_download", callback)
   },
 
   waitAudioDownloadRequest: function (callback) {
-    createWorker("audio_download", callback)
+    return createWorker("audio_download", callback)
   },
 
   waitVideoTranscodeRequest: function (callback) {
-    createWorker("video_transcode", callback)
+    return createWorker("video_transcode", callback)
   },
 
   waitFrameJob: function (callback) {
-    createWorker("frame_jobs", callback)
+    return createWorker("frame_jobs", callback)
   },
 
   waitFrameJobFinish: function (videoId, callback) {    
-    createWorker(`out_frames_${videoId}`, callback)
+    return createWorker(`out_frames_${videoId}`, callback)
   },
 
   waitVideoReady: function (videoId, callback) {
-    createSubscriber(`ready_${videoId}`, callback)
+    return createSubscriber(`ready_${videoId}`, callback)
   },
 
   waitTotalVideoFrameCount: function (videoId, callback) {
-    createWorker(`frame_count_${videoId}`, callback)
+    return createWorker(`frame_count_${videoId}`, callback)
   },
 
   waitVideoMetadata: function (videoId, callback) {
-    createWorker(`metadata_${videoId}`, callback)
+    return createWorker(`metadata_${videoId}`, callback)
   },
 
   cancelReceiver: function (worker) {
-    comsChannel.cancel(worker).then(function (err) {
-      if (err) throw err
-    }).catch(console.warn)
+    // comsChannel.cancel(worker).then(function (err) {
+    //   if (err) throw err
+    // }).catch(console.warn)
+    worker.then(function (cancelFunc) {
+      cancelFunc()
+    })
   }
 
 };

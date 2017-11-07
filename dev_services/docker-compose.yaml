@@ -17,15 +17,24 @@ services:
     command: server /data
   message_queue:
     container_name: cloudcats-rabbit
-    image: rabbitmq:3-alpine
+    build: .
     ports:
       - 4369:4369
       - 5671:5671
       - 5672:5672
       - 25672:25672
+      - 15672:15672
     networks:
       cloudcats:
         ipv4_address: 172.18.0.10
+  redis:
+    container_name: cloudcats-redis
+    image: redis:4-alpine
+    ports:
+      - 6379:6379
+    networks:
+      cloudcats:
+        ipv4_address: 172.18.0.12
 networks:
   cloudcats:
     external:

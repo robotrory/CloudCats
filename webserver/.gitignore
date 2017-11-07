@@ -3,4 +3,5 @@ datastore.js
 messenger.js
 receiver.js
 stream_tools.js
+oracle_os.js
 static/fs/

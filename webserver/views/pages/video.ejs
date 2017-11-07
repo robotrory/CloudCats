@@ -24,8 +24,11 @@
                 player.initialize(document.querySelector("#videoPlayer"), url, true);
             }
           });
-
-          socket.emit('status query', {videoId: '<%= videoId %>'})
+          
+          socket.on('connect', function () {
+            socket.emit('video request', {videoId: '<%= videoId %>'})  
+          })
+          
         </script>
     </head>
     <body>

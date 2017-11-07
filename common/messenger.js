@@ -1,25 +1,35 @@
-var open = require('amqplib').connect('amqp://172.18.0.10')
-var comsChannel
+const DEBUG = process.env.IS_DEBUG == undefined || process.env.IS_DEBUG != 'false'
+var host = DEBUG ? "localhost" : process.env.RABBIT_ADDR
+var amqp = require('amqplib-easy')(`amqp://${host}`);
+var Promise = require("bluebird");
 
 function sendMessage (queueName, obj) {
-  comsChannel.assertQueue(queueName, {durable: false}).then(function () {
-    return comsChannel.sendToQueue(queueName, new Buffer(JSON.stringify(obj)))
-  }).catch(console.warn)
+  amqp.sendToQueue({
+    queue: queueName,
+    queueOptions: {
+      durable: true
+    },
+    exchangeOptions: {
+      durable: true
+    }}, obj).catch(console.warn)
 }
 
 function publishMessage (exchangeName, obj) {
-  comsChannel.assertExchange(exchangeName, 'fanout', {durable: false}).then(function () {
-    comsChannel.publish(exchangeName, '', new Buffer(JSON.stringify(obj)))
-  }).catch(console.warn)
+  amqp.publish({
+    exchange: exchangeName,
+    queueOptions: {
+      durable: true
+    },
+    exchangeOptions: {
+      durable: true
+    }}, 'video_msg', obj).catch(console.warn)
 }
 
 module.exports = {
   ready: function () {
-    return open.then(function(conn) {
-      return conn.createChannel()
-    }).then(function(ch) {
-      comsChannel = ch
-    }).catch(console.warn)
+    return new Promise(function (res, rej) {
+      res()
+    })
   },
 
   requestVideoDownload: function (videoId) {

@@ -6,24 +6,19 @@ var youtubedl = require('youtube-dl');
 var streamTools = require('./stream_tools');
 
 
-messenger.ready().then(function () {
-  return receiver.ready()
-}).then(function () {
-  console.log('coms up')
-  receiver.waitVideoDownloadRequest(function (msg, ackCallback) {
-    console.log(`received request to download video for ${msg.videoId}`)
-    downloadVideo(msg.videoId, ackCallback)
-  })
+receiver.waitVideoDownloadRequest(function (msg, ackCallback) {
+  console.log(`received request to download video for ${msg.videoId}`)
+  downloadVideo(msg.videoId, ackCallback)
 })
 
-// downloadVideo("gajBIB8K2SY")
+// downloadVideo("gajBIB8K2SY", function () {console.log('fake ack')})
 
 function downloadVideo(videoId, ackCallback) {
   
   var video
   var bucketName = datastore.getVideoBucketName(videoId)
   console.log("bucketName", bucketName)
-  datastore.createBucket(bucketName, function () {
+  datastore.createBucket(bucketName).then(function () {
     video = youtubedl(`http://www.youtube.com/watch?v=${videoId}`,
       // Optional arguments passed to youtube-dl.
       ['--format=243'],
@@ -76,9 +71,9 @@ function downloadVideo(videoId, ackCallback) {
 
   function saveFrame (videoId, frameNumber, data) {
     // TODO: chunk these
-    var uuid = uuidv1()
-    var addrObj = {bucket: bucketName, file: uuid}
-    datastore.saveBlob(addrObj, new Buffer(data), function () {
+    var fileName = `in_${frameNumber}`
+    var addrObj = {bucket: bucketName, file: fileName}
+    datastore.saveBlob(addrObj, new Buffer(data)).then(function () {
       messenger.submitFrameJob(videoId, frameNumber, addrObj)
     })
   }

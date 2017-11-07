@@ -1,14 +1,21 @@
 version: '3'
 services:
   worker:
+    stdin_open: true
+    tty: true
     build: .
     networks:
       - cloudcats
     volumes:
       - ./:/app
       - /app/node_modules
-    stdin_open: true
-    tty: true
+    environment:
+      - IS_DEBUG=false
+      - S3_ADDR=172.18.0.11
+      - RABBIT_ADDR=172.18.0.10
+      - REDIS_ADDR=172.18.0.12
+      - DRY_RUN=true
+      - DATA_SERVICE=minio
 networks:
   cloudcats:
     external:

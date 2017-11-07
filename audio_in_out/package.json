@@ -10,10 +10,17 @@
   "license": "ISC",
   "dependencies": {
     "amqplib": "^0.5.1",
+    "amqplib-easy": "^5.0.0",
     "bluebird": "^3.5.1",
+    "chokidar": "^1.7.0",
+    "http-signature": "^1.2.0",
+    "jssha": "^2.3.1",
+    "minio": "^3.2.2",
+    "redis": "^2.8.0",
     "rsmq": "^0.8.2",
     "rsmq-worker": "^0.5.2",
     "shelljs": "^0.7.8",
+    "wait-on": "^2.0.2",
     "youtube-dl": "^1.12.2"
   }
 }
