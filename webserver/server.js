@@ -21,30 +21,6 @@ app.get('/', function (req, res) {
   res.send('CloudCats!')
 })
 
-app.get('/media/*', function (req, res) {
-  
-  var path = req.params[0];
-  var parts = path.split("/");
-  if (parts.length == 2) {
-    datastore.ensureMediaBucket().then(function () {
-      console.log('bucket exists')
-      var addrObj = {
-        bucket: 'media',
-        file: path
-      }
-      datastore.blobExists(addrObj).then(function (exists) {
-        if (exists) {
-          request(`http://${datastore.getMediaBucketPublicUrl()}/${path}`).pipe(res);
-        } else {
-          res.status(404).send('Not found')
-        }
-      })
-    }).catch(console.warn)
-  } else {
-    res.status(404).send('Not found')
-  }
-})
-
 app.get('/watch', function (req, res) {
   // res.send(`You requested video id ${req.query.v}`)
   res.render('pages/video', {

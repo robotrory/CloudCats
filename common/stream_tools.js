@@ -60,14 +60,18 @@ module.exports = {
 
   },
 
-  parseVideoStream: function (stream, frameCallback) {
+  parseVideoStream: function (stream, fps, frameCallback) {
 
     return new Promise(function (resolve, reject) {
 
-      proc = spawn('ffmpeg', [ '-i',
+      proc = spawn('ffmpeg', [ '-r',
+        fps,
+        '-i',
         '-',
         '-f',
         'image2pipe',
+        '-framerate',
+        fps,
         '-vcodec',
         'png',
         '-' ])
@@ -77,9 +81,10 @@ module.exports = {
       var seenFirstHeader = false
       var existingData = new Uint8Array();
 
-      counter = 0
+      var counter = 0
       proc.stdout.on('data', function(data) {
-        var index = -1
+        var headerIndices = []
+        // go through input data until we find a png header
         for (var i=0; i<data.length-7; i++) {
           if (data[i] == 137 &&
               data[i+1] == 80 &&
@@ -89,23 +94,37 @@ module.exports = {
               data[i+5] == 10 &&
               data[i+6] == 26 &&
               data[i+7] == 10) {
-            index = i
-            break
+            headerIndices.push(i)
           }
         }
-        if (index >= 0) {
-          if (!seenFirstHeader) {
-            seenFirstHeader = true
-            existingData = concatTypedArrays(existingData, data);
-          } else {
-            existingData = concatTypedArrays(existingData, data.slice(0, index))
-            frameCallback(counter, existingData)
-            counter++;
-            existingData = data.slice(index, data.length)
+
+        // if we've found a header
+        if (headerIndices.length > 0) {
+          console.log(`found ${headerIndices.length} png headers in data`)
+
+          existingData = concatTypedArrays(existingData, data.slice(0, headerIndices[0]))
+
+          for (var i=0; i<headerIndices.length; i++) {
+            var index = headerIndices[i]
+            var nextIndex = (i < headerIndices.length-1) ? headerIndices[i+1] : -1
+
+            var dataChunk = (nextIndex >= 0) ? data.slice(index, nextIndex) : data.slice(index, data.length)
+
+            if (!seenFirstHeader) {
+              seenFirstHeader = true
+              existingData = concatTypedArrays(existingData, dataChunk);
+            } else {
+              frameCallback(counter, existingData)
+              counter++;
+              existingData = dataChunk
+            }
           }
+
         } else {
           existingData = concatTypedArrays(existingData, data);
         }
+
+        
       })
 
 
@@ -122,7 +141,13 @@ module.exports = {
 
       proc.on('exit', function (code) {
         console.log('video input process exited with code ' + code.toString());
-        resolve()
+        // total frames is counter - 1
+        resolve(counter-1)
+      })
+
+      proc.stdout.on('exit', function (code) {
+        console.log('video stdout exited, flushing');
+        frameCallback(counter, existingData)
       })
 
       stream.pipe(proc.stdin)
@@ -136,16 +161,18 @@ module.exports = {
     var doubleFps = Math.round(2 * fps * 100) / 100
 
     proc = spawn('ffmpeg', [ '-y',
-    '-r',
-    fps,
     '-f',
     'image2pipe',
+    '-framerate',
+    fps,
     '-vcodec',
     'png',
     '-i',
     '-',
     '-map',
     '0:0',
+    '-r',
+    fps,
     '-pix_fmt',
     'yuv420p',
     '-c:v',
@@ -159,11 +186,11 @@ module.exports = {
     '-speed',
     '8',
     '-tile-columns',
-    '6',
+    '4',
     '-frame-parallel',
     '1',
     '-threads',
-    '1',
+    '4',
     '-cpu-used',
     '-5',
     '-static-thresh',
@@ -207,7 +234,9 @@ module.exports = {
 
     proc.on('exit', function (code) {
       console.log('video output process exited with code ' + code.toString());
-      finishCallback()
+      if (code == 0) {
+        finishCallback()
+      }
     })
 
     proc.on('uncaughtException', function(err) {

@@ -58,13 +58,13 @@ function downloadVideo(videoId, ackCallback) {
       duration: duration
     })
 
-    var indicesCount = 0
-    streamTools.parseVideoStream(video, function onFrame(i, data) {
-      indicesCount++
+    streamTools.parseVideoStream(video, fps, function onFrame(i, data) {
+      console.log(`seen frame ${i}`)
       saveFrame(videoId, i, data)
-    }).then(function () {
-      messenger.sendTotalVideoFrameCount(videoId, indicesCount)
+    }).then(function (totalFrameCount) {
+      console.log(`we're done, at ${totalFrameCount} frames`)
       ackCallback()
+      messenger.sendTotalVideoFrameCount(videoId, totalFrameCount)
     })
 
   }

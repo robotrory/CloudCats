@@ -113,6 +113,10 @@ module.exports = {
     return osClient.putObject(addrObj.bucket, addrObj.file, data)
   },
 
+  saveFileBlob(addrObj, filename) {
+    return osClient.fPutObject(addrObj.bucket, addrObj.file, filename, 'application/octet-stream')
+  },
+
   loadBlob: function (addrObj) {
     var size = 0
     return osClient.getObject(addrObj.bucket, addrObj.file).then(function(dataStream) {
@@ -160,7 +164,10 @@ module.exports = {
             timeout: 30000, // timeout in ms, default Infinity 
             window: 1000, // stabilization time in ms, default 750ms 
           }, function (err) {
-            if (err) { return handleError(err); }
+            if (err) { 
+              console.warn(err);
+              return
+            }
             
 
             osClient.fPutObject(bucketName, filename, path, 'application/octet-stream').then(function(err) {

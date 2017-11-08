@@ -6,7 +6,8 @@ services:
     ports:
       - 3000:80
     networks:
-      - cloudcats
+      cloudcats:
+        ipv4_address: 172.18.0.13
     volumes:
       - /Users/rory/University/fourth_year/cloud/docker_stuff/data:/app/static/fs
       - ./:/app

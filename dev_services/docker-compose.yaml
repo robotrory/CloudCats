@@ -17,7 +17,9 @@ services:
     command: server /data
   message_queue:
     container_name: cloudcats-rabbit
-    build: .
+    build:
+      context: .
+      dockerfile: dockerfile_rabbit
     ports:
       - 4369:4369
       - 5671:5671
@@ -35,6 +37,18 @@ services:
     networks:
       cloudcats:
         ipv4_address: 172.18.0.12
+  nginx:
+    container_name: cloudcats-nginx
+    build:
+      context: .
+      dockerfile: dockerfile_nginx
+    ports:
+      - 8080:80
+    extra_hosts:
+     - "minio-master:172.18.0.11"
+     - "webapp:172.18.0.13"
+    networks:
+      - cloudcats
 networks:
   cloudcats:
     external:

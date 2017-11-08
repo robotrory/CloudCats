@@ -60,6 +60,7 @@ function waitForVideoFrames(videoId, ackCallback) {
 
     var validFrameMap = {}
     var currentFrameIndex = 0
+    var minInitialFrameCount = videoData.fps
     var dir = `${scratchDir}/${videoId}`
     shell.mkdir('-p', dir);
     var inStream = streamTools.outputVideoStream(dir, videoData.fps, videoData.width, videoData.height, onFinalFrameReached)
@@ -72,7 +73,7 @@ function waitForVideoFrames(videoId, ackCallback) {
       console.log(`received expectedFrameCount: ${msg.count}`)
       ackCallbackArray.push(frameCountAckCallback)
       expectedFrameCount = msg.count
-      if (framesSeen == expectedFrameCount) {
+      if (expectedFrameCount >= 0 && framesSeen >= expectedFrameCount) {
         inStream.end()
       }
     }).then(function (cancelCallback) {
@@ -81,37 +82,42 @@ function waitForVideoFrames(videoId, ackCallback) {
 
     function processFrame (frameNumber, data) {
       framesSeen++
-      console.log(frameNumber)
+      console.log(`${frameNumber}:${framesSeen}`)
 
       if (frameNumber == 0) {
         createManifest(videoId, videoData.duration)
       }
 
-      if (framesSeen == expectedFrameCount) {
+      if (expectedFrameCount >= 0 && framesSeen >= expectedFrameCount) {
         inStream.end()
       } else if (data) {
         inStream.write(data)
       }
     }
 
+    var dataStoreSemaphore = false
+
     checkDataStore()
 
     function checkDataStore () {
+      dataStoreSemaphore = true
       console.log(`starting checkDataStore, currentFrameIndex: ${currentFrameIndex}`)
       datastore.getVideoOutFrames(videoId).then(function (files) {
         var finishedFrames = files.map(x => parseInt(x.name.replace('out_', ''))).sort((a,b) => (a - b))
         
-        if (finishedFrames.length > currentFrameIndex && finishedFrames[currentFrameIndex] == currentFrameIndex) {
+        if (finishedFrames.length > minInitialFrameCount && finishedFrames.length > currentFrameIndex && finishedFrames[currentFrameIndex] == currentFrameIndex) {
           promiseWhile(function () {
             return finishedFrames.length > currentFrameIndex &&
             finishedFrames[currentFrameIndex] == currentFrameIndex
           }, function() {
+            console.log('begin load')
             return datastore.loadBlob({
               bucket: datastore.getVideoBucketName(videoId),
               file: `out_${currentFrameIndex}`
             }).then(function (data) {
               processFrame(currentFrameIndex, new Buffer(data))
               currentFrameIndex++
+              console.log('end load')
             })
           }).then(function () {
             console.log('done going forward')
@@ -119,10 +125,15 @@ function waitForVideoFrames(videoId, ackCallback) {
               console.log(`validFrameMap hold valid value for ${currentFrameIndex}`)
               checkDataStore()
             } else {
+              dataStoreSemaphore = false
               console.log(`we're now waiting at ${currentFrameIndex}`)
             }
           }).catch(console.warn)
+        } else if (validFrameMap[currentFrameIndex]) {
+          console.log(`validFrameMap hold valid value for ${currentFrameIndex}`)
+          checkDataStore()
         } else {
+          dataStoreSemaphore = false
           console.log(`still can't find current frame ${currentFrameIndex}!`)
         }
 
@@ -132,10 +143,12 @@ function waitForVideoFrames(videoId, ackCallback) {
     
     console.log(`waiting for frames from ${videoId}`)
     receiver.waitFrameJobFinish(videoId, function (msg, frameAckCallback) {    
-      if (msg.frameNumber == currentFrameIndex) {
-        checkDataStore()  
-      } else {
-        validFrameMap[msg.frameNumber] = true
+      validFrameMap[msg.frameNumber] = true
+      console.log(`received job done for frame ${msg.frameNumber}`)
+      if (msg.frameNumber >= currentFrameIndex) {
+        if (!dataStoreSemaphore) {
+          checkDataStore() 
+        }
       }
       
       frameAckCallback()
