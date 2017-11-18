@@ -1,22 +1,13 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<MPD
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xmlns="urn:mpeg:DASH:schema:MPD:2011"
-  xsi:schemaLocation="urn:mpeg:DASH:schema:MPD:2011"
-  type="dynamic"
-  minBufferTime="PT1S"
-  profiles="urn:mpeg:dash:profile:isoff-live:2011"
-  timeShiftBufferDepth="PT7200S"
-  minimumUpdatePeriod="PT7200S"
-  mediaPresentationDuration="<%= duration %>">
-  <Period id="0" start="PT0S" >
-    <AdaptationSet id="0" mimeType="video/webm" codecs="vp9" bitstreamSwitching="true" subsegmentAlignment="true" subsegmentStartsWithSAP="1">
-      <ContentComponent id="1" type="video"/>
+<MPD mediaPresentationDuration="PT<%= duration %>S" minBufferTime="PT2.00S" profiles="urn:hbbtv:dash:profile:isoff-live:2012,urn:mpeg:dash:profile:isoff-live:2011" type="static" xmlns="urn:mpeg:dash:schema:mpd:2011" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:mpeg:DASH:schema:MPD:2011 DASH-MPD.xsd">
+  <BaseURL>./</BaseURL>
+  <Period>
+    <AdaptationSet mimeType="video/webm" codecs="vp9" contentType="video" subsegmentAlignment="true" subsegmentStartsWithSAP="1" >
       <SegmentTemplate timescale="1000" duration="2000" media="$RepresentationID$_$Number$.chk" startNumber="1" initialization="$RepresentationID$.hdr"/>
-      <Representation id="360" bandwidth="1000000" width="1920" height="1080" codecs="vp9" mimeType="video/webm" startsWithSAP="1"></Representation>
+      <Representation id="360" bandwidth="10000" width="1920" height="1080" codecs="vp9" mimeType="video/webm" startsWithSAP="1"></Representation>
     </AdaptationSet>
-    <AdaptationSet id="1" mimeType="audio/webm" codecs="vorbis" lang="eng" bitstreamSwitching="true" subsegmentAlignment="true" subsegmentStartsWithSAP="1">
-      <ContentComponent id="1" type="audio"/>
+    <AdaptationSet mimeType="audio/webm" codecs="vorbis" contentType="audio" subsegmentAlignment="true" subsegmentStartsWithSAP="1">
+      <Accessibility schemeIdUri="urn:tva:metadata:cs:AudioPurposeCS:2007" value="6"/>
+      <Role schemeIdUri="urn:mpeg:dash:role:2011" value="main"/>
       <SegmentTemplate timescale="1000" duration="2000" media="$RepresentationID$_$Number$.chk" startNumber="1" initialization="$RepresentationID$.hdr"/>
       <Representation id="171" bandwidth="128000" audioSamplingRate="44100" codecs="vorbis" mimeType="audio/webm" startsWithSAP="1"></Representation>
     </AdaptationSet>
