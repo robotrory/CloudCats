@@ -1,6 +1,6 @@
 import oci
 import os
-import StringIO
+import cStringIO
 from minio import Minio
 from minio.error import ResponseError
 from minio.error import  BucketAlreadyOwnedByYou
@@ -22,7 +22,7 @@ class Datastore(object):
     def get_object(self, bucketName, objectName):
       try:
         response = self.minioClient.get_object(bucketName, objectName)
-        inputStream = StringIO.StringIO()
+        inputStream = cStringIO.StringIO()
         for d in response.stream(32*1024):
           inputStream.write(d)
         return inputStream

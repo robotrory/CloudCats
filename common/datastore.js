@@ -210,7 +210,7 @@ module.exports = {
     }
   },
 
-  getVideoOutFrames: function (videoId) {
+  getVideoOutChunks: function (videoId) {
     return new Promise(function (res, rej) {
       var stream = osClient.listObjects(module.exports.getVideoBucketName(videoId), 'out_', false)
       var files = []

@@ -60,11 +60,11 @@ module.exports = {
     return createWorker("video_transcode", callback)
   },
 
-  waitFrameJob: function (callback) {
+  waitChunkJob: function (callback) {
     return createWorker("frame_jobs", callback)
   },
 
-  waitFrameJobFinish: function (videoId, callback) {    
+  waitChunkJobFinish: function (videoId, callback) {    
     return createWorker(`out_frames_${videoId}`, callback)
   },
 
@@ -72,7 +72,7 @@ module.exports = {
     return createSubscriber(`ready_${videoId}`, callback)
   },
 
-  waitTotalVideoFrameCount: function (videoId, callback) {
+  waitTotalVideoChunkCount: function (videoId, callback) {
     return createWorker(`frame_count_${videoId}`, callback)
   },
 

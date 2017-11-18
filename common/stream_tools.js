@@ -100,7 +100,7 @@ module.exports = {
 
         // if we've found a header
         if (headerIndices.length > 0) {
-          console.log(`found ${headerIndices.length} png headers in data`)
+          // console.log(`found ${headerIndices.length} png headers in data`)
 
           existingData = concatTypedArrays(existingData, data.slice(0, headerIndices[0]))
 

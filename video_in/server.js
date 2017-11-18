@@ -4,12 +4,19 @@ var datastore = require('./datastore');
 const uuidv1 = require('uuid/v1');
 var youtubedl = require('youtube-dl');
 var streamTools = require('./stream_tools');
-
+var FRAME_CHUNK_SIZE = 5
 
 receiver.waitVideoDownloadRequest(function (msg, ackCallback) {
   console.log(`received request to download video for ${msg.videoId}`)
   downloadVideo(msg.videoId, ackCallback)
 })
+
+function concatTypedArrays(a, b) { // a, b TypedArray of same type
+    var c = new (a.constructor)(a.length + b.length);
+    c.set(a, 0);
+    c.set(b, a.length);
+    return c;
+}
 
 // downloadVideo("gajBIB8K2SY", function () {console.log('fake ack')})
 
@@ -45,7 +52,7 @@ function downloadVideo(videoId, ackCallback) {
       onInfo(width, height, fps, duration)
     });
 
-  })
+  }).catch(console.warn)
 
   function onInfo (width, height, fps, duration) {
 
@@ -59,24 +66,47 @@ function downloadVideo(videoId, ackCallback) {
     })
 
     streamTools.parseVideoStream(video, fps, function onFrame(i, data) {
-      console.log(`seen frame ${i}`)
+      // console.log(`seen frame ${i}`)
       saveFrame(videoId, i, data)
     }).then(function (totalFrameCount) {
       console.log(`we're done, at ${totalFrameCount} frames`)
       ackCallback()
-      messenger.sendTotalVideoFrameCount(videoId, totalFrameCount)
+      flushFrameDataQueue()
+      messenger.sendTotalVideoChunkCount(videoId, chunkCounter)
     })
 
   }
+
+  var frameDataQueue = new Uint8Array()
+  var framePointerQueue = []
+  var chunkCounter = 0
 
   function saveFrame (videoId, frameNumber, data) {
-    // TODO: chunk these
-    var fileName = `in_${frameNumber}`
-    var addrObj = {bucket: bucketName, file: fileName}
-    datastore.saveBlob(addrObj, new Buffer(data)).then(function () {
-      messenger.submitFrameJob(videoId, frameNumber, addrObj)
-    })
+    framePointerQueue.push(frameDataQueue.length)
+    frameDataQueue = concatTypedArrays(frameDataQueue, data)
+    if (framePointerQueue.length >= FRAME_CHUNK_SIZE) {
+      flushFrameDataQueue()
+    }
   }
+
+  function flushFrameDataQueue () {
+    // TODO: chunk these
+    if (framePointerQueue.length > 0) {
+      console.log(`flushing ${framePointerQueue.length} frames to chunk ${chunkCounter}`)
+      var fileName = `in_${chunkCounter}`
+      var addrObj = {bucket: bucketName, file: fileName}
+      var data = new Buffer(frameDataQueue)
+      var chunkCounterVal = chunkCounter
+      var pointerQueue = framePointerQueue
+      datastore.saveBlob(addrObj, data).then(function () {
+        messenger.submitChunkJob(videoId, chunkCounterVal, pointerQueue, addrObj)
+      })
+      framePointerQueue = []
+      frameDataQueue = new Uint8Array()
+      chunkCounter++
+    }
+  }
+
 }
 
 

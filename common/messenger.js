@@ -44,19 +44,19 @@ module.exports = {
     sendMessage("video_transcode", {videoId: videoId})
   },
 
-  submitFrameJob: function (videoId, frameNumber, addrObj) {
-    sendMessage("frame_jobs", {videoId: videoId, frameNumber: frameNumber, addrObj: addrObj})
+  submitChunkJob: function (videoId, chunkNumber, pointerQueue, addrObj) {
+    sendMessage("frame_jobs", {videoId: videoId, chunkNumber: chunkNumber, pointerQueue: pointerQueue, addrObj: addrObj})
   },
 
-  finishFrameJob: function (videoId, frameNumber, addrObj) {
-    sendMessage(`out_frames_${videoId}`, {videoId: videoId, frameNumber: frameNumber, addrObj: addrObj})
+  finishChunkJob: function (videoId, chunkNumber, addrObj) {
+    sendMessage(`out_frames_${videoId}`, {videoId: videoId, chunkNumber: chunkNumber, addrObj: addrObj})
   },
 
   broadcastVideoReady: function (videoId, duration) {
     publishMessage(`ready_${videoId}`, {duration: duration})
   },
 
-  sendTotalVideoFrameCount: function (videoId, count) {
+  sendTotalVideoChunkCount: function (videoId, count) {
     sendMessage(`frame_count_${videoId}`, {count: count})
   },
 

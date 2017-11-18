@@ -10,7 +10,7 @@ const ejs = require('ejs')
 
 receiver.waitVideoTranscodeRequest(function (msg, ackCallback) {
   console.log(`received request to transcode video for ${msg.videoId}`)
-  waitForVideoFrames(msg.videoId, ackCallback)
+  waitForVideoChunks(msg.videoId, ackCallback)
 })
 
 datastore.ensureMediaBucket().then(function () {
@@ -19,15 +19,15 @@ datastore.ensureMediaBucket().then(function () {
   })
 })
 
-// waitForVideoFrames("gajBIB8K2SY", function () {console.log('fake ack')})
+// waitForVideoChunks("gajBIB8K2SY", function () {console.log('fake ack')})
 
 var promiseWhile = Promise.method(function(condition, action) {
     if (!condition()) return;
     return action().then(promiseWhile.bind(null, condition, action));
 });
 
-function waitForVideoFrames(videoId, ackCallback) {
-  console.log(`waitForVideoFrames for ${videoId}`)
+function waitForVideoChunks(videoId, ackCallback) {
+  console.log(`waitForVideoChunks for ${videoId}`)
   
   var ackCallbackArray = [ackCallback]
   // var ackCallbackArray = []
@@ -49,7 +49,7 @@ function waitForVideoFrames(videoId, ackCallback) {
     videoData = msg.metadata
     console.log(videoData)
 
-    function onFinalFrameReached () {
+    function onFinalChunkReached () {
       console.log("we're done")
       
       for (var i=0; i<ackCallbackArray.length; i++) {
@@ -58,37 +58,37 @@ function waitForVideoFrames(videoId, ackCallback) {
       cleanupBuckets(videoId)
     }
 
-    var validFrameMap = {}
-    var currentFrameIndex = 0
-    var minInitialFrameCount = videoData.fps
+    var validChunkMap = {}
+    var currentChunkIndex = 0
+    var minInitialChunkCount = videoData.fps
     var dir = `${scratchDir}/${videoId}`
     shell.mkdir('-p', dir);
-    var inStream = streamTools.outputVideoStream(dir, videoData.fps, videoData.width, videoData.height, onFinalFrameReached)
+    var inStream = streamTools.outputVideoStream(dir, videoData.fps, videoData.width, videoData.height, onFinalChunkReached)
 
     
 
-    var expectedFrameCount = -1
-    var framesSeen = 0
-    receiver.waitTotalVideoFrameCount(videoId, function (msg, frameCountAckCallback) {
-      console.log(`received expectedFrameCount: ${msg.count}`)
-      ackCallbackArray.push(frameCountAckCallback)
-      expectedFrameCount = msg.count
-      if (expectedFrameCount >= 0 && framesSeen >= expectedFrameCount) {
+    var expectedChunkCount = -1
+    var chunksSeen = 0
+    receiver.waitTotalVideoChunkCount(videoId, function (msg, chunkCountAckCallback) {
+      console.log(`received expectedChunkCount: ${msg.count}`)
+      ackCallbackArray.push(chunkCountAckCallback)
+      expectedChunkCount = msg.count
+      if (expectedChunkCount >= 0 && chunksSeen >= expectedChunkCount) {
         inStream.end()
       }
     }).then(function (cancelCallback) {
       ackCallbackArray.push(cancelCallback)
     })
 
-    function processFrame (frameNumber, data) {
-      framesSeen++
-      console.log(`${frameNumber}:${framesSeen}`)
+    function processChunk (chunkNumber, data) {
+      chunksSeen++
+      // console.log(`${chunkNumber}:${chunksSeen}`)
 
-      if (frameNumber == 0) {
+      if (chunkNumber == 0) {
         createManifest(videoId, videoData.duration)
       }
 
-      if (expectedFrameCount >= 0 && framesSeen >= expectedFrameCount) {
+      if (expectedChunkCount >= 0 && chunksSeen >= expectedChunkCount) {
         inStream.end()
       } else if (data) {
         inStream.write(data)
@@ -101,57 +101,53 @@ function waitForVideoFrames(videoId, ackCallback) {
 
     function checkDataStore () {
       dataStoreSemaphore = true
-      console.log(`starting checkDataStore, currentFrameIndex: ${currentFrameIndex}`)
-      datastore.getVideoOutFrames(videoId).then(function (files) {
-        var finishedFrames = files.map(x => parseInt(x.name.replace('out_', ''))).sort((a,b) => (a - b))
+      // console.log(`starting checkDataStore, currentChunkIndex: ${currentChunkIndex}`)
+      datastore.getVideoOutChunks(videoId).then(function (files) {
+        var finishedChunks = files.map(x => parseInt(x.name.replace('out_', ''))).sort((a,b) => (a - b))
         
-        if (finishedFrames.length > minInitialFrameCount && finishedFrames.length > currentFrameIndex && finishedFrames[currentFrameIndex] == currentFrameIndex) {
+        if (finishedChunks.length > minInitialChunkCount && finishedChunks.length > currentChunkIndex && finishedChunks[currentChunkIndex] == currentChunkIndex) {
           promiseWhile(function () {
-            return finishedFrames.length > currentFrameIndex &&
-            finishedFrames[currentFrameIndex] == currentFrameIndex
+            return finishedChunks.length > currentChunkIndex &&
+            finishedChunks[currentChunkIndex] == currentChunkIndex
           }, function() {
-            console.log('begin load')
             return datastore.loadBlob({
               bucket: datastore.getVideoBucketName(videoId),
-              file: `out_${currentFrameIndex}`
+              file: `out_${currentChunkIndex}`
             }).then(function (data) {
-              processFrame(currentFrameIndex, new Buffer(data))
-              currentFrameIndex++
-              console.log('end load')
+              processChunk(currentChunkIndex, new Buffer(data))
+              currentChunkIndex++
             })
           }).then(function () {
-            console.log('done going forward')
-            if (validFrameMap[currentFrameIndex]) {
-              console.log(`validFrameMap hold valid value for ${currentFrameIndex}`)
+            if (validChunkMap[currentChunkIndex]) {
+              // console.log(`validChunkMap hold valid value for ${currentChunkIndex}`)
               checkDataStore()
             } else {
               dataStoreSemaphore = false
-              console.log(`we're now waiting at ${currentFrameIndex}`)
+              // console.log(`we're now waiting at ${currentChunkIndex}`)
             }
           }).catch(console.warn)
-        } else if (validFrameMap[currentFrameIndex]) {
-          console.log(`validFrameMap hold valid value for ${currentFrameIndex}`)
+        } else if (validChunkMap[currentChunkIndex]) {
+          // console.log(`validChunkMap hold valid value for ${currentChunkIndex}`)
           checkDataStore()
         } else {
           dataStoreSemaphore = false
-          console.log(`still can't find current frame ${currentFrameIndex}!`)
+          // console.log(`still can't find current chunk ${currentChunkIndex}!`)
         }
 
 
       })
     }
     
-    console.log(`waiting for frames from ${videoId}`)
-    receiver.waitFrameJobFinish(videoId, function (msg, frameAckCallback) {    
-      validFrameMap[msg.frameNumber] = true
-      console.log(`received job done for frame ${msg.frameNumber}`)
-      if (msg.frameNumber >= currentFrameIndex) {
+    console.log(`waiting for chunks from ${videoId}`)
+    receiver.waitChunkJobFinish(videoId, function (msg, chunkAckCallback) {    
+      validChunkMap[msg.chunkNumber] = true
+      if (msg.chunkNumber >= currentChunkIndex) {
         if (!dataStoreSemaphore) {
           checkDataStore() 
         }
       }
       
-      frameAckCallback()
+      chunkAckCallback()
     }).then(function (cancelCallback) {
       ackCallbackArray.push(cancelCallback)
     })
@@ -174,7 +170,7 @@ function createManifest (videoId, duration) {
           bucket: 'media',
           file: `${videoId}/manifest.mpd`
         }, str).then(function () {
-          console.log("SENDING FIRST FRAME EVENT")
+          console.log("SENDING FIRST CHUNK EVENT")
           messenger.broadcastVideoReady(videoId, duration)
         })
       })

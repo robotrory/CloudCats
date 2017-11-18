@@ -1,7 +1,7 @@
 import pika
 import json
 import uuid
-import StringIO
+import cStringIO
 import os
 import numpy as np
 import cv2
@@ -9,11 +9,12 @@ import openface
 from Face import ImageParser
 from Datastore import Datastore
 import hashlib
+import time
 
 print('starting')
 
 debug = os.environ['IS_DEBUG'] == 'true'
-dryRun = os.environ['DRY_RUN'] == 'true'
+dryRun = False #os.environ['DRY_RUN'] == 'true'
 messageHost = 'localhost' if debug else os.environ['RABBIT_ADDR']
 
 
@@ -40,33 +41,40 @@ if dryRun:
 
 def onFrameJob(ch, method, properties, body):
     msg = json.loads(body)
-    print(body)
 
     videoId = msg['videoId']
-    frameNumber = msg['frameNumber']
+    chunkNumber = msg['chunkNumber']
+    pointerQueue = msg['pointerQueue']
     addrObj = msg['addrObj']
+
+    print("%s:%s" % (videoId, chunkNumber))
 
     
     inputStream = datastore.get_object(addrObj['bucket'], addrObj['file'])
     if inputStream is not None:
-      if dryRun:
-        saveFrame(videoId, frameNumber, inputStream)
-      else:
-        try:
-            outputStream = manipulateFrame(inputStream)
-            saveFrame(videoId, frameNumber, outputStream)
-        except ResponseError as err:
-            print(err)
+      outputStream = manipulateChunk(inputStream, pointerQueue)
+      saveChunk(videoId, chunkNumber, outputStream)
 
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
-def manipulateFrame(stream):
+def manipulateChunk(stream, pointerQueue):
   stream.seek(0)
-  img_array = np.asarray(bytearray(stream.read()), dtype=np.uint8)
-  bgrImg = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-  processed = imageParser.process(bgrImg)
-  r, encoded = cv2.imencode(".png",processed)
-  outStream = StringIO.StringIO(bytearray(encoded))
+
+  npData = np.asarray(bytearray(stream.getvalue()), dtype=np.uint8)
+
+  headerIndices = pointerQueue
+  dataLength = len(npData)
+  outStream = cStringIO.StringIO()
+  headersCount = len(headerIndices)
+  for i in range(headersCount):
+    headerIndex = headerIndices[i]
+    nextHeaderIndex = headerIndices[i+1] if i+1 < headersCount else dataLength
+    img_array = npData[headerIndex:nextHeaderIndex]
+    bgrImg = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+    processed = bgrImg if dryRun else imageParser.process(bgrImg)
+    _, encoded = cv2.imencode(".png", processed)
+    outStream.write(bytearray(encoded))
+  
   return outStream
 
 def getVideoBucketName(videoId):
@@ -74,8 +82,8 @@ def getVideoBucketName(videoId):
   m.update(videoId)
   return m.hexdigest()
 
-def saveFrame(videoId, frameNumber, data):
-  fileName = ('out_%s' % frameNumber)
+def saveChunk(videoId, chunkNumber, data):
+  fileName = ('out_%s' % chunkNumber)
   addrObj = {"bucket": getVideoBucketName(videoId), "file": fileName}
 
   outQueue = "out_frames_%s" % videoId
@@ -92,7 +100,7 @@ def saveFrame(videoId, frameNumber, data):
   
   channel.basic_publish(exchange='',
   routing_key=outQueue,
-  body=json.dumps({"videoId": videoId, "frameNumber": frameNumber, "addrObj": addrObj}))
+  body=json.dumps({"videoId": videoId, "chunkNumber": chunkNumber, "addrObj": addrObj}))
 
 
 channel.basic_consume(onFrameJob,

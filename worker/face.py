@@ -16,11 +16,11 @@ class ImageParser(object):
 
       imgDim = 96
       self.align = openface.AlignDlib(os.path.join(dlibModelDir, "shape_predictor_68_face_landmarks.dat"))
-      net = openface.TorchNeuralNet(os.path.join(openfaceModelDir, 'nn4.small2.v1.t7'), imgDim)
 
-      self.catImg = cv2.imread('cats/cat1.png', cv2.IMREAD_UNCHANGED)
-      self.catWidth = self.catImg.shape[0]
-      self.catHeight = self.catImg.shape[1]
+      self.catHeadImg = cv2.imread('cats/cat_head.png', cv2.IMREAD_UNCHANGED)
+      self.catMouthImg = cv2.imread('cats/cat_mouth.png', cv2.IMREAD_UNCHANGED)
+      self.catWidth = self.catHeadImg.shape[0]
+      self.catHeight = self.catHeadImg.shape[1]
       self.sf = 1.8
       self.yOffset = 1.2
 
@@ -34,23 +34,39 @@ class ImageParser(object):
       bbs = self.align.getAllFaceBoundingBoxes(rgbImg)
       np_bbs = np.array([[b.left(), b.top(), b.right(), b.bottom()] for b in bbs])
       final_bbs = self.non_max_suppression_fast(np_bbs, 0.3)
-      sorted_bbs = sorted(final_bbs, key=lambda x: x[2]-x[0] )
-      for bb in sorted_bbs:
-      
+      sorted_bbs = sorted(zip(final_bbs, bbs), key=lambda x: x[0][2]-x[0][0])
+      for (bb, dlibBB) in sorted_bbs:
+        landmarks = self.align.findLandmarks(rgbImg, dlibBB)
+        
         bbWidth = (bb[2]-bb[0])
         resizeWidth = int(round(bbWidth * self.sf))
         resizeHeight = int(round(self.sf * self.catHeight * (bbWidth / float(self.catWidth))))
-        resizedCatImg = cv2.resize(self.catImg, (resizeWidth, resizeHeight))    
+        resizedCatHeadImg = cv2.resize(self.catHeadImg, (resizeWidth, resizeHeight))    
+        resizedCatMouthImg = cv2.resize(self.catMouthImg, (resizeWidth, resizeHeight))    
         drawX = int(round((bb[0] + bb[2])/2-(resizeWidth/2)))
         drawY = int(round((bb[1] + bb[3])/2-(resizeHeight/2) * self.yOffset))
 
         self.overlay_image_alpha(bgrImg,
-                        resizedCatImg[:, :, 0:3],
+                        resizedCatHeadImg[:, :, 0:3],
                         (drawX, drawY),
-                        resizedCatImg[:, :, 3] / 255.0)
+                        resizedCatHeadImg[:, :, 3] / 255.0)
+
+        yParting = self.get_parting(landmarks)
+
+        self.overlay_image_alpha(bgrImg,
+                        resizedCatMouthImg[:, :, 0:3],
+                        (drawX, drawY + yParting),
+                        resizedCatMouthImg[:, :, 3] / 255.0)
 
       # cv2.rectangle(bgrImg, (bb.left(), bb.top()), (bb.right(), bb.bottom()), (0,255,0), 3)
       return bgrImg
+
+    def get_parting(self, landmarks):
+      diff1 = landmarks[67][1]-landmarks[61][1]
+      diff2 = landmarks[66][1]-landmarks[62][1]
+      diff3 = landmarks[65][1]-landmarks[63][1]
+      parting = (diff1 + diff2 + diff3) / 3
+      return parting
 
     def overlay_image_alpha(self, img, img_overlay, pos, alpha_mask):
         """Overlay img_overlay on top of img at the position specified by
