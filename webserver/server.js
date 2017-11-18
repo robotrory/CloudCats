@@ -5,6 +5,8 @@ var io = require('socket.io')(http);
 var fs = require('fs');
 var shell = require('shelljs');
 var request = require('request');
+var fetchVideoInfo = require('youtube-info');
+var Promise = require("bluebird");
 var messenger = require('./messenger');
 var receiver = require('./receiver');
 var datastore = require('./datastore');
@@ -14,27 +16,43 @@ process.on('uncaughtException', function (err) {
   console.log("Node NOT Exiting...");
 });
 
-app.use(express.static('static'))
 app.set('view engine', 'ejs');
 
 app.get('/', function (req, res) {
-  res.send('CloudCats!')
+  res.render('pages/home')
+})
+
+app.get('/help', function (req, res) {
+  res.render('pages/help')
 })
 
 app.get('/watch', function (req, res) {
   // res.send(`You requested video id ${req.query.v}`)
-  res.render('pages/video', {
-    manifestUrl: generateManifestUrl(req.query.v),
-    videoId: req.query.v
-  });
+  renderVideoPage(res, req.query.v)
 })
+
+function renderVideoPage (res, videoId) {
+  fetchVideoInfo(videoId).then(function (videoInfo) {
+    if (videoInfo.url) {
+      // valid videoId
+      res.render('pages/video', {
+        manifestUrl: generateManifestUrl(videoId),
+        videoId: videoId,
+        title: videoInfo.title,
+        posterUrl: videoInfo.thumbnailUrl
+      });
+    } else {
+      // invalid videoId
+      res.render('pages/badVideo');
+    }
+  }).catch(function (err) {
+    console.log('err', err);
+  })
+}
 
 app.get('/watch/:videoId', function (req, res) {
   // res.send(`You requested video id ${req.params.videoId}`)
-  res.render('pages/video', {
-    manifest_url: generateManifestUrl(req.params.videoId),
-    videoId: req.params.videoId
-  });
+  renderVideoPage(res, req.params.videoId)
 })
 
 io.on('connection', function(socket){
@@ -60,7 +78,15 @@ http.listen(80, function(){
 });
 
 function requestVideo(socket, videoId) {
-  datastore.ensureMediaBucket().then(function () {
+  fetchVideoInfo(videoId).then(function (videoInfo) {
+    if (videoInfo.url) {
+      return Promise.resolve()
+    } else {
+      return Promise.reject(`invalid videoId request: ${videoId}`)
+    }
+  }).then(function () {
+    return datastore.ensureMediaBucket()  
+  }).then(function () {
     console.log('bucket exists')
     return datastore.blobExists({
       bucket: 'media',

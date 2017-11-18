@@ -1,15 +1,88 @@
 <!doctype html>
 <html>
     <head>
-        <title>Dash.js Rocks</title>
-        <script src="/socket.io/socket.io.js"></script>
-        <script src="/js/dash.all.debug.js"></script>
+        <title><%= title %></title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+        <link href="static/css/theme.css" type="text/css" rel="stylesheet">
+        <link href="static/css/player.css" type="text/css" rel="stylesheet">
+        <link href="static/css/loader.css" type="text/css" rel="stylesheet">
+        <link rel="icon" type="image/png" href="/static/img/favicon-16x16.png" sizes="16x16">  
+        <link rel="icon" type="image/png" href="/static/img/favicon-32x32.png" sizes="32x32">  
+        <link rel="icon" type="image/png" href="/static/img/favicon-96x96.png" sizes="96x96">
         <style>
-            video {
-                width: 640px;
-                height: 360px;
+            .plyr {
+                margin: 0 auto;
+                border-radius: 6px;
+            }
+
+            .plyr {
+                pointer-events: none;
+                opacity: 0.4;
+            }
+
+            .plyr .plyr__play-large {
+                display: none;
             }
         </style>
+    </head>
+    <body>
+        <div class="site-wrapper">
+
+              <div class="site-wrapper-inner">
+
+                <div class="cover-container">
+
+                  <header class="masthead clearfix">
+                    <div class="inner">
+                      <h3 class="masthead-brand">CloudCats</h3>
+                      <nav class="nav nav-masthead">
+                        <a class="nav-link" href="/">Home</a>
+                        <a class="nav-link" href="/help">Help</a>
+                      </nav>
+                    </div>
+                  </header>
+
+                  <main role="main" class="inner cover">
+                    <h2 class="cover-heading"><%= title %></h2>
+                    <video id="player" poster="<%= posterUrl %>" data-plyr='{ "controls": ["play-large", "play", "progress", "current-time", "mute", "volume", "fullscreen"], "volume": 10 }'>
+                    </video>
+                    <div class="container">
+                        <div class="row">
+                            <div id="loader">
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="lading"></div>
+                            </div>
+                        </div>
+                    </div>
+                  </main>
+
+                  <footer class="mastfoot">
+                    <div class="inner">
+                      <!-- <p>Cover template for <a href="https://getbootstrap.com/">Bootstrap</a>, by <a href="https://twitter.com/mdo">@mdo</a>.</p> -->
+                    </div>
+                  </footer>
+
+                </div>
+
+              </div>
+
+            </div>
+        
+        
+        <script src="http://cdn.dashjs.org/latest/dash.mediaplayer.min.js"></script>
+        <script src="https://cdn.plyr.io/2.0.18/plyr.js"></script>
+        <script type="text/javascript">plyr.setup();</script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.slim.js"></script>
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
         <script>
           var socket = io();
 
@@ -19,9 +92,30 @@
 
             if (msg.indexOf('finished downloading') >= 0) {
                 var url = "<%= manifestUrl %>";
+
+                $('#loader').css({display: 'none'});
+
+                var mpd = url,
+                    dash = dashjs.MediaPlayer().create(),
+                    video = document.querySelector('#player');
+
+                dash.initialize(video, mpd, true);
+
+                dash.setFragmentLoaderRetryAttempts(1000);
+                dash.setScheduleWhilePaused(true);
+
+                plyr.setup(video);
+
                 player = dashjs.MediaPlayer().create();
-                player.setFragmentLoaderRetryAttempts(1000);
-                player.initialize(document.querySelector("#videoPlayer"), url, true);
+
+                $('.plyr').css({
+                    'pointer-events': 'all',
+                    opacity: 1
+                });
+
+                $('.plyr .plyr__play-large').css({
+                    display: 'inline-block'
+                });
             }
           });
           
@@ -30,10 +124,5 @@
           })
           
         </script>
-    </head>
-    <body>
-        <div>
-            <video id="videoPlayer" controls></video>
-        </div>
     </body>
 </html>
